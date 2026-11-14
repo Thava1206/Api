@@ -3,7 +3,23 @@ const crypto = require('crypto');
 const sequelize = require('../common/database');
 const defineUser = require("../common/models/Users");
 const User = defineUser(sequelize);
+const Ajv = require('ajv');
+const ajv = new Ajv();
+const schema = {
+    type: 'object',
+    required: ['username', 'email', 'password'],
+    properties: {
+        username: {type: 'string', minLength: 3},
+        email: {type: 'string', format: 'email'},
+        password: { type: 'string', minLength: 6}
+    }
+};
 
+const validate = ajv.compile(schema);
+
+if (!validate(req.body)) {
+    return res.status(400).json({ error : 'Invalid input', details: validate.errors });
+}
 const encryptPassword = (password) =>
     crypto.createHash('sha256').update(password).digest('hex');
 
@@ -31,4 +47,14 @@ exports.register = async (req, res) => {
     } catch (err) {
         res.status(500).json({ success: false, error: err.message});
     }
+}
+exports.login = async (req, res) => {
+    const {username, password} = req.body;
+    const encrypted = encryptPassword(password);
+    const user = await User.findOne({ where: {username}});
+    if (!user || user.password !== encrypted) 
+        return res.status(401).json({ error : 'Invalid credentials'});
+
+    const token = generateAccessToken(username, user.id);
+    res.json({ success: true, user, token});
 }

@@ -4,11 +4,21 @@ const sequelize = require('./common/database');
 const defineUser = require('./common/models/Users');
 const User = defineUser(sequelize);
 const authRoutes = require('./authorization/routes');
+const userRoutes = require('./users/routes');
 
 
 app.use(express.json());
 app.use('/', authRoutes);
+app.use('/user', userRoutes);
+app.use((err,req,res,next)=> {
+    console.error(err.stack);
+    res.status(500).json({
+        success: false,
+        error: 'Something went wrong'
+    });
+});
 sequelize.sync();
+
 app.get('/status', (req, res) => {
   res.json({
     status: 'Running',
